@@ -1,5 +1,4 @@
-from flask import Flask, render_template, request, session, \
-    flash, redirect, url_for, g
+from flask import Flask, render_template, request, session, flash, redirect, url_for, g
 import sqlite3
 from functools import wraps
 
@@ -37,7 +36,7 @@ def login_required(test):
         else:
             flash('You need to login first')
             return redirect(url_for('login'))
-        return wrap
+    return wrap
 
 
 @app.route('/logout')
@@ -47,8 +46,9 @@ def logout():
     return redirect(url_for('login'))
 
 
-@login_required
+
 @app.route('/main')
+@login_required
 def main():
     g.db = connect_db()
     cur = g.db.execute('select * from posts')
@@ -57,8 +57,9 @@ def main():
     return render_template('main.html', posts=posts)
 
 
-@login_required
+
 @app.route('/add', methods=['POST'])
+@login_required
 def add():
     title = request.form['title']
     post = request.form['post']
