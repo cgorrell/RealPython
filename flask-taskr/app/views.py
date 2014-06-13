@@ -2,6 +2,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from functools import wraps
 from flask.ext.sqlalchemy import SQLAlchemy
 from forms import AddTask, RegisterForm, LoginForm
+from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -19,6 +20,12 @@ def login_required(test):
             flash('You need to log in first')
             return redirect(url_for('login'))
     return wrap
+
+
+def flash_errors(form):
+    for field, errors in form.errors.items():
+        for error in errors:
+            flash(u"Error in the %s field -%s" % (getattr(form, field).label.text, error), 'error')
 
 
 @app.route('/logout/')
@@ -69,6 +76,8 @@ def new_task():
         db.session.add(new_task)
         db.session.commit()
         flash("New enrty was successfully added. Thanks.")
+    else:
+        flash_errors(form)
     return redirect(url_for('tasks'))
 
 
@@ -101,8 +110,25 @@ def register():
             form.name.data,
             form.email.data,
             form.password.data)
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Thanks for registering. Please login')
-        return redirect(url_for('login'))
-    return render_template('register.html', form=form, error=error)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Thanks for registering. Please login')
+            return redirect(url_for('login'))
+        except IntegrityError:
+            error = 'Username and/or email already exists.'
+            return render_template('register.html', form=form, error=error)
+    else:
+        flash_errors(form)
+        return render_template('register.html', form=form, error=error)
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(404)
+def internal_error(error):
+    return render_template('404.html'), 404
