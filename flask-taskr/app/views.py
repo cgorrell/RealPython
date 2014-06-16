@@ -1,14 +1,6 @@
-from flask import Flask, flash, redirect, render_template, request, session, url_for, g
+from app import app, db
+from flask import flash, redirect, render_template, session, url_for
 from functools import wraps
-from flask.ext.sqlalchemy import SQLAlchemy
-from forms import AddTask, RegisterForm, LoginForm
-from sqlalchemy.exc import IntegrityError
-
-app = Flask(__name__)
-app.config.from_object('config')
-db = SQLAlchemy(app)
-
-from models import FTasks, User
 
 
 def login_required(test):
@@ -18,7 +10,7 @@ def login_required(test):
             return test(*args, **kwargs)
         else:
             flash('You need to log in first')
-            return redirect(url_for('login'))
+            return redirect(url_for('users.login'))
     return wrap
 
 
@@ -28,99 +20,9 @@ def flash_errors(form):
             flash(u"Error in the %s field -%s" % (getattr(form, field).label.text, error), 'error')
 
 
-@app.route('/logout/')
-def logout():
-    session.pop('logged_in', None)
-    session.pop('user_id', None)
-    flash('You logged out. Bye.')
-    return redirect(url_for('login'))
-
-
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        u = User.query.filter_by(name=request.form['name'],
-                                 password=request.form['password']).first()
-        if u is None:
-            error = 'Invalid username or password.  Please try again.'
-        else:
-            session['logged_in'] = True
-            session['user_id'] = u.id
-            flash('You\'re all logged in. Go Crazy.')
-            return redirect(url_for('tasks'))
-    return render_template('login.html', form=LoginForm(request.form), error=error)
-
-
-@app.route('/tasks/')
-@login_required
-def tasks():
-    open_tasks = db.session.query(FTasks).filter_by(status='1').order_by(FTasks.due_date.asc())
-    closed_tasks = db.session.query(FTasks).filter_by(status='0').order_by(FTasks.due_date.asc())
-    return render_template('tasks.html', form=AddTask(request.form),
-                           open_tasks=open_tasks, closed_tasks=closed_tasks)
-
-
-@app.route('/add/', methods=['POST'])
-@login_required
-def new_task():
-    form = AddTask(request.form, csrf_enabled=False)
-    if form.validate_on_submit():
-        new_task = FTasks(
-            form.name.data,
-            form.due_date.data,
-            form.priority.data,
-            form.posted_date.data,
-            '1',
-            session['user_id'])
-        db.session.add(new_task)
-        db.session.commit()
-        flash("New enrty was successfully added. Thanks.")
-    else:
-        flash_errors(form)
-    return redirect(url_for('tasks'))
-
-
-@app.route('/complete/<int:task_id>/',)
-@login_required
-def complete(task_id):
-    new_id = task_id
-    db.session.query(FTasks).filter_by(task_id=new_id).update({'status': '0'})
-    db.session.commit()
-    flash('task was marked complete')
-    return redirect(url_for('tasks'))
-
-
-@app.route('/delete/<int:task_id>/',)
-@login_required
-def delete_entry(task_id):
-    new_id = task_id
-    db.session.query(FTasks).filter_by(task_id=new_id).delete()
-    db.session.commit()
-    flash('the task was deleted.')
-    return redirect(url_for('tasks'))
-
-
-@app.route('/register/', methods=['GET', 'Post'])
-def register():
-    error = None
-    form = RegisterForm(request.form, csrf_enabled=False)
-    if form.validate_on_submit():
-        new_user = User(
-            form.name.data,
-            form.email.data,
-            form.password.data)
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Thanks for registering. Please login')
-            return redirect(url_for('login'))
-        except IntegrityError:
-            error = 'Username and/or email already exists.'
-            return render_template('register.html', form=form, error=error)
-    else:
-        flash_errors(form)
-        return render_template('register.html', form=form, error=error)
+@app.route('/', defaults={'page': 'index'})
+def index(page):
+    return(redirect(url_for('users.login')))
 
 
 @app.errorhandler(500)

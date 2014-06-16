@@ -1,8 +1,8 @@
 import os
 import unittest
 
-from views import app, db
-from models import User
+from app import app, db
+from app.models import User
 from config import basedir
 
 TEST_DB = 'test.db'
