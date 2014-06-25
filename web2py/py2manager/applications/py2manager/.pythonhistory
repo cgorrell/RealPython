@@ -1,0 +1,11 @@
+exit()
+db = DAL('sqlite://storage.sqlite',pool_size=1,check_reserved=['all'])
+db.define_table('special_users', Field('name'), Field('email'))
+db.special_users.bulk_insert([{'name':'Alan', 'email':'a@a.com'}, {'name':'John', 'email':'t@t.com'}])
+for row in db().select(db.special_users.ALL):
+print row.name
+for row in db().select(db.special_users.ALL):
+    print row.name
+for row in db().select(db.special_users.ALL):
+    print row
+exit()
